@@ -25,12 +25,16 @@ It is not a goal of this endeavor to implement a faster memcpy in D, but rather 
 
 memcpyD, so far, is able to meet or beat memcpyC's performance in most tests.
 
-### Windows 10
+### Windows 10, Intel Core i5 6300U (Microsoft Surface Book)
+Compiled with `dmd -m64 memcpyd.d`.
+![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/surfacebook.png)
+
+### Windows 10 Intel Core i7 7700T
 Compiled with `dmd -m64 memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win10.png)
 
 
-### Linux VirtualBox Guest
+### Linux VirtualBox Guest on Windows 10 Host, Intel Core i7 7700T
 Compiled with `dmd memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/linux.png)
 
