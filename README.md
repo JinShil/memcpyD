@@ -15,7 +15,11 @@ D currently has a hard dependency on the C standard library.  I believe the reas
 
 Also, due to the fact that at one time D did not have templates or compile-time execution, many implementations in the D runtime are using runtime time information.  Modern D has templates and compile-time execution, so by rewriting the D runtime implementations using those metaprogramming facilities, we can potentially achieve better performance.  Also, the runtime could be used in [-betterC](https://dlang.org/spec/betterc.html) code, which currently doesn't support runtime type information.  To do that, however, we need templated building blocks like memcpy and memcmp to take advantage of the compile-time type information.  This is the part of the reason why memcpyD has a templated, strong-typed interface; `memcpyD(T src, T dst)` over C's `memcpy(void* dst, void* src, size_t length)`.  D can use the compile-time type information (e.g. size and alignment) to generate optimal implementations using D's metaprogramming facilities.
 
-It is unlikely this code will ever be used by D programmers directly.  This is because D already has syntax like `dst[] = src[]`.  That syntax gets lowered to the aforementioned runtime implementations, and those runtime implementations will call instantiate a memcpyD template as necessary in their implementation.
+It is unlikely this code will ever be used by D programmers directly.  This is because D already has syntax like `dst[] = src[]`.  That syntax gets lowered to the aforementioned runtime implementations, and those runtime implementations will instantiate a memcpyD template as necessary.
+
+Although grossly incomplete, the current implementation of memcpyD is cohesive and simple.  This makes it much easier to understand, predict, port, and enhance.  Many implementations in C, on the other hand, are quite complex, and due to the special treatment it's given by the compiler, the only way to know what's actually happening is to decompile the executable and analyze the assembly code (Yuck!).
+
+It is not a goal of this endeavor to implement a faster memcpy in D, but rather to implement a suitable substitute in D.  But, if we manage to squeeze some more performance out of the D implementation, that'd be great!
 
 ## Results so far
 
