@@ -15,12 +15,21 @@ Some things go without saying.
 
 ## Results so far
 
+memcpyD, so far, is able to meet or beat memcpyC's performance in most tests.
+
+### Windows 10
 Compiled with `dmd -m64 memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win10.png)
 
+
+### Linux VirtualBox Guest
 Compiled with `dmd memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/linux.png)
 
+I don't know why memcpyD outperforms memcpyC in VirtualBox, but I believe it is a fluke.  I don't expect such results on real hardware.
+
+
+### Graph Generation
 Graphs generated with gnuplot:
 ```
 set autoscale
