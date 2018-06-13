@@ -33,6 +33,10 @@ Compiled with `dmd -m64 memcpyd.d`.
 Compiled with `dmd -m64 memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win10.png)
 
+### Windows 8, AMD FX-8370
+Compiled with `dmd -m64 memcpyd.d`.
+![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win8amd8370.png)
+
 
 ### Linux VirtualBox Guest on Windows 10 Host, Intel Core i7 7700T
 Compiled with `dmd memcpyd.d`.
