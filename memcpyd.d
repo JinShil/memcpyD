@@ -68,6 +68,27 @@ void memcpyD(T)(T* src, T* dst)
     }
 }
 
+// The following 2 functions are an attempt to prevent the compiler
+// from removing code when compiling with optimizations.  See
+// https://stackoverflow.com/questions/40122141/preventing-compiler-optimizations-while-benchmarking
+void use(void* p)
+{
+    version(LDC)
+    {
+        import ldc.llvmasm;
+         __asm("", "r,~{memory}", p);
+    }
+}
+
+void clobber()
+{
+    version(LDC)
+    {
+        import ldc.llvmasm;
+        __asm("", "~{memory}");
+    }
+}
+
 Duration benchmark(T, alias f)(T* src, T* dst)
 {
     enum iterations = 10_000_000;
@@ -78,6 +99,7 @@ Duration benchmark(T, alias f)(T* src, T* dst)
     foreach (_; 0 .. iterations)
     {
         f(src, dst);
+        clobber();    // So optimizer doesn't remove code
     }
     result = sw.peek();
 
@@ -88,15 +110,15 @@ void init(T)(ref T v)
 {
     static if (is (T == float))
     {
-        v = uniform(0.0f, float.max);
+        v = uniform(0.0f, 9_999_999.0f);
     }
     else static if (is(T == double))
     {
-        v = uniform(0.0, double.max);
+        v = uniform(0.0, 9_999_999.0);
     }
     else static if (is(T == real))
     {
-        v = uniform(0.0L, real.max);
+        v = uniform(0.0L, 9_999_999.0L);
     }
     else
     {
@@ -110,6 +132,17 @@ void init(T)(ref T v)
 
 void verify(T)(const scope T a, const scope T b)
 {
+    // memcmp fails for reals when compiling with optimizations
+    // in DMD.
+    version(DigitalMars)
+    {
+        static if(is(T == real))
+        {
+            assert(a == b);
+            return;
+        }
+    }
+
     assert(memcmp(&a, &b, T.sizeof) == 0);
 }
 
