@@ -49,8 +49,57 @@ void memcpyD(T)(T* src, T* dst)
         {
             import core.simd: void16;
             *(cast(void16*)dst) = *(cast(void16*)src);
+        }
+        else
+        {
+            static foreach(i; 0 .. T.sizeof/8)
+            {
+                memcpyD((cast(ulong*)src) + i, (cast(ulong*)dst) + i);
+            }
+        }
+
+        return;
+    }
+    else static if (T.sizeof == 32)
+    {
+        // AVX implementation is unstable in DMD. It sporadically fails.
+        version(D_AVX)
+        {
+            import core.simd: void32;
+            *(cast(void32*)dst) = *(cast(void32*)src);
+        }
+        else
+        {
+            static foreach(i; 0 .. T.sizeof/16)
+            {
+                memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
+            }
+        }
+
+        return;
+    }
+    else
+    {
+        version(D_AVX)
+        {
+            static foreach(i; 0 .. T.sizeof/32)
+            {
+                memcpyD((cast(S32*)src) + i, (cast(S32*)dst) + i);
+            }
 
             return;
+        }
+        else version(D_SIMD)
+        {
+            static if (T.sizeof < 1024)
+            {
+                static foreach(i; 0 .. T.sizeof/16)
+                {
+                    memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
+                }
+            }
+
+            // else will fall down to `rep movsb` implementation below
         }
         else
         {
@@ -63,37 +112,7 @@ void memcpyD(T)(T* src, T* dst)
                 rep;
                 movsb;
             }
-
-            return;
         }
-    }
-    else static if (T.sizeof == 32)
-    {
-        // AVX implementation is unstable in DMD. It sporadically fails.
-        version(D_AVX)
-        {
-            import core.simd: void32;
-            *(cast(void32*)dst) = *(cast(void32*)src);
-
-            return;
-        }
-        else
-        {
-            static foreach(i; 0 .. T.sizeof/16)
-            {
-                memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
-            }
-
-            return;
-        }
-    }
-    else
-    {
-        static foreach(i; 0 .. T.sizeof/32)
-        {
-            memcpyD((cast(S32*)src) + i, (cast(S32*)dst) + i);
-        }
-
         return;
     }
 }
