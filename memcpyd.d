@@ -54,7 +54,7 @@ void memcpyD(T)(T* src, T* dst)
 
         static foreach(i; 0 .. T.sizeof/16)
         {
-            mixin("*(d+" ~ i.to!string ~ ") = *(s+" ~ i.to!string ~ ");");
+            *(d+i) = *(s+i);
         }
 
         return;
