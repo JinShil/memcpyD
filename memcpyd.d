@@ -105,29 +105,10 @@ void init(T)(ref T v)
     }
     else
     {
-        static if (T.sizeof == 1)
+        auto m = (cast(ubyte*) &v)[0 .. T.sizeof];
+        for(int i = 0; i < m.length; i++)
         {
-            v = cast(T)(uniform!ubyte);
-        }
-        else static if (T.sizeof == 2)
-        {
-            v = cast(T)(uniform!ushort);
-        }
-        else static if (T.sizeof == 4)
-        {
-            v = cast(T)(uniform!uint);
-        }
-        else static if (T.sizeof == 8)
-        {
-            v = cast(T)(uniform!ulong);
-        }
-        else
-        {
-            auto m = (cast(ubyte*) &v)[0 .. T.sizeof];
-            for(int i = 0; i < m.length; i++)
-            {
-                m[i] = uniform!byte;
-            }
+            m[i] = uniform!byte;
         }
     }
 }
