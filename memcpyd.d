@@ -231,7 +231,7 @@ struct S65536 { ubyte[65536] x; }
 void main()
 {
     // For performing benchmarks
-    writeln("size memcpyC memcpyD");
+    writeln("size(bytes) memcpyC memcpyD");
     test!S1;
     test!S2;
     test!S4;
@@ -252,7 +252,7 @@ void main()
 
     // For testing integrity
     writeln("");
-    writeln("size memcpyC memcpyD");
+    writeln("size(bytes) memcpyC memcpyD");
     test!bool;
     test!ubyte;
     test!byte;
