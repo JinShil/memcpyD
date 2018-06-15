@@ -40,30 +40,52 @@ void memcpyD(T)(T* src, T* dst)
         memcpyD(cast(ulong*)src, cast(ulong*)dst);
         return;
     }
-    else static if (T.sizeof >= 16 && T.sizeof < 1024)
-    {
-        import core.simd;
-        import std.conv;
-        void16* s = cast(void16*)src;
-        void16* d = cast(void16*)dst;
-
-        static foreach(i; 0 .. T.sizeof/16)
-        {
-            *(d+i) = *(s+i);
-        }
-
-        return;
-    }
     else
     {
-        asm pure nothrow @nogc
+        version(D_AVX)
         {
-            mov RSI, src;
-            mov RDI, dst;
-            cld;
-            mov RCX, T.sizeof;
-            rep;
-            movsb;
+            import core.simd: void32;
+            import std.conv: to;
+            void32* s = cast(void32*)src;
+            void32* d = cast(void32*)dst;
+
+            static foreach(i; 0 .. T.sizeof/32)
+            {
+                *(d+i) = *(s+i);
+            }
+
+            return;
+        }
+        else
+        {
+            static if (T.sizeof < 1024)
+            {
+                import core.simd: void16;
+                import std.conv: to;
+                void16* s = cast(void16*)src;
+                void16* d = cast(void16*)dst;
+
+                static foreach(i; 0 .. T.sizeof/16)
+                {
+                    *(d+i) = *(s+i);
+                }
+
+                return;
+            }
+            else
+            {
+                asm pure nothrow @nogc
+                {
+                    mov RSI, src;
+                    mov RDI, dst;
+                    cld;
+                    mov RCX, T.sizeof;
+                    rep;
+                    movsb;
+                }
+
+                return;
+            }
         }
     }
 }
@@ -133,14 +155,10 @@ void init(T)(ref T v)
 void verify(T)(const scope T a, const scope T b)
 {
     // memcmp fails for reals when compiling with optimizations
-    // in DMD.
-    version(DigitalMars)
+    static if(is(T == real))
     {
-        static if(is(T == real))
-        {
-            assert(a == b);
-            return;
-        }
+        assert(a == b);
+        return;
     }
 
     assert(memcmp(&a, &b, T.sizeof) == 0);
