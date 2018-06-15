@@ -4,11 +4,6 @@ import std.random;
 import std.traits;
 import std.stdio;
 
-void verify(T)(const scope T a, const scope T b)
-{
-    assert(memcmp(&a, &b, T.sizeof) == 0);
-}
-
 void memcpyC(T)(T* src, T* dst)
 {
     memcpy(dst, src, T.sizeof);
@@ -111,6 +106,11 @@ void init(T)(ref T v)
             m[i] = uniform!byte;
         }
     }
+}
+
+void verify(T)(const scope T a, const scope T b)
+{
+    assert(memcmp(&a, &b, T.sizeof) == 0);
 }
 
 void test(T)()
