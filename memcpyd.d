@@ -4,6 +4,9 @@ import std.random;
 import std.traits;
 import std.stdio;
 
+private struct S16 { ubyte[16] x; }
+private struct S32 { ubyte[32] x; }
+
 void memcpyC(T)(T* src, T* dst)
 {
     memcpy(dst, src, T.sizeof);
@@ -42,60 +45,56 @@ void memcpyD(T)(T* src, T* dst)
     }
     else static if (T.sizeof == 16)
     {
-        import core.simd: void16;
-        void16* s = cast(void16*)src;
-        void16* d = cast(void16*)dst;
-
-        *d = *s;
-
-        return;
-    }
-    else
-    {
-        // AVX implementation is unstable in DMD. It sporadically fails.
-        version(D_AVX)
+        version(D_SIMD)
         {
-            import core.simd: void32;
-            void32* s = cast(void32*)src;
-            void32* d = cast(void32*)dst;
-
-            static foreach(i; 0 .. T.sizeof/32)
-            {
-                *(d+i) = *(s+i);
-            }
+            import core.simd: void16;
+            *(cast(void16*)dst) = *(cast(void16*)src);
 
             return;
         }
         else
         {
-            static if (T.sizeof < 1024)
+            asm pure nothrow @nogc
             {
-                import core.simd: void16;
-                void16* s = cast(void16*)src;
-                void16* d = cast(void16*)dst;
-
-                static foreach(i; 0 .. T.sizeof/16)
-                {
-                    *(d+i) = *(s+i);
-                }
-
-                return;
+                mov RSI, src;
+                mov RDI, dst;
+                cld;
+                mov RCX, T.sizeof;
+                rep;
+                movsb;
             }
-            else
-            {
-                asm pure nothrow @nogc
-                {
-                    mov RSI, src;
-                    mov RDI, dst;
-                    cld;
-                    mov RCX, T.sizeof;
-                    rep;
-                    movsb;
-                }
 
-                return;
-            }
+            return;
         }
+    }
+    else static if (T.sizeof == 32)
+    {
+        // AVX implementation is unstable in DMD. It sporadically fails.
+        version(D_AVX)
+        {
+            import core.simd: void32;
+            *(cast(void32*)dst) = *(cast(void32*)src);
+
+            return;
+        }
+        else
+        {
+            static foreach(i; 0 .. T.sizeof/16)
+            {
+                memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
+            }
+
+            return;
+        }
+    }
+    else
+    {
+        static foreach(i; 0 .. T.sizeof/32)
+        {
+            memcpyD((cast(S32*)src) + i, (cast(S32*)dst) + i);
+        }
+
+        return;
     }
 }
 
@@ -196,8 +195,8 @@ struct S1 { ubyte x; }
 struct S2 { ushort x; }
 struct S4 { uint x; }
 struct S8 { ulong x; }
-struct S16 { ubyte[16] x; }
-struct S32 { ubyte[32] x; }
+// struct S16 { ubyte[16] x; }
+// struct S32 { ubyte[32] x; }
 struct S64 { ubyte[64] x; }
 struct S128 { ubyte[128] x; }
 struct S256 { ubyte[256] x; }
