@@ -43,7 +43,6 @@ void memcpyD(T)(T* src, T* dst)
     else static if (T.sizeof == 16)
     {
         import core.simd: void16;
-        import std.conv: to;
         void16* s = cast(void16*)src;
         void16* d = cast(void16*)dst;
 
@@ -57,7 +56,6 @@ void memcpyD(T)(T* src, T* dst)
         version(D_AVX)
         {
             import core.simd: void32;
-            import std.conv: to;
             void32* s = cast(void32*)src;
             void32* d = cast(void32*)dst;
 
@@ -73,7 +71,6 @@ void memcpyD(T)(T* src, T* dst)
             static if (T.sizeof < 1024)
             {
                 import core.simd: void16;
-                import std.conv: to;
                 void16* s = cast(void16*)src;
                 void16* d = cast(void16*)dst;
 
