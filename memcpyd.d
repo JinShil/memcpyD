@@ -40,8 +40,20 @@ void memcpyD(T)(T* src, T* dst)
         memcpyD(cast(ulong*)src, cast(ulong*)dst);
         return;
     }
+    else static if (T.sizeof == 16)
+    {
+        import core.simd: void16;
+        import std.conv: to;
+        void16* s = cast(void16*)src;
+        void16* d = cast(void16*)dst;
+
+        *d = *s;
+
+        return;
+    }
     else
     {
+        // AVX implementation is unstable in DMD. It sporadically fails.
         version(D_AVX)
         {
             import core.simd: void32;
@@ -152,16 +164,14 @@ void init(T)(ref T v)
     }
 }
 
-void verify(T)(const scope T a, const scope T b)
+void verify(T)(const ref T a, const ref T b)
 {
-    // memcmp fails for reals when compiling with optimizations
-    static if(is(T == real))
+    auto aa = (cast(ubyte*)&a)[0..T.sizeof];
+    auto bb = (cast(ubyte*)&b)[0..T.sizeof];
+    for(int i = 0; i < T.sizeof; i++)
     {
-        assert(a == b);
-        return;
+        assert(aa[i] == bb[i]);
     }
-
-    assert(memcmp(&a, &b, T.sizeof) == 0);
 }
 
 void test(T)()
