@@ -97,22 +97,23 @@ void memcpyD(T)(T* src, T* dst)
                 {
                     memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
                 }
+
+                return;
             }
 
             // else will fall down to `rep movsb` implementation below
         }
-        else
+
+        asm pure nothrow @nogc
         {
-            asm pure nothrow @nogc
-            {
-                mov RSI, src;
-                mov RDI, dst;
-                cld;
-                mov RCX, T.sizeof;
-                rep;
-                movsb;
-            }
+            mov RSI, src;
+            mov RDI, dst;
+            cld;
+            mov RCX, T.sizeof;
+            rep;
+            movsb;
         }
+
         return;
     }
 }
@@ -138,19 +139,25 @@ void clobber()
     }
 }
 
-Duration benchmark(T, alias f)(T* src, T* dst)
+Duration benchmark(T, alias f)(T* src, T* dst, ulong* bytesCopied)
 {
-    enum iterations = 10_000_000;
+    enum iterations = 2^^20 / T.sizeof;
     Duration result;
-    auto sw = StopWatch(AutoStart.yes);
 
-    sw.reset();
-    foreach (_; 0 .. iterations)
+    auto swt = StopWatch(AutoStart.yes);
+    swt.reset();
+    while(swt.peek().total!"nsecs" < 1_000_000_000)
     {
-        f(src, dst);
-        clobber();    // So optimizer doesn't remove code
+        auto sw = StopWatch(AutoStart.yes);
+        sw.reset();
+        foreach (_; 0 .. iterations)
+        {
+            f(src, dst);
+            clobber();    // So optimizer doesn't remove code
+        }
+        result += sw.peek();
+        *bytesCopied += (iterations * T.sizeof);
     }
-    result = sw.peek();
 
     return result;
 }
@@ -204,10 +211,19 @@ void test(T)()
     memcpyD(&s, &d);
     verify(s, d);
 
-    auto d1 = benchmark!(T, memcpyC)(&s, &d);
-    auto d2 = benchmark!(T, memcpyD)(&s, &d);
+    ulong bytesCopied1;
+    ulong bytesCopied2;
+    immutable d1 = benchmark!(T, memcpyC)(&s, &d, &bytesCopied1);
+    immutable d2 = benchmark!(T, memcpyD)(&s, &d, &bytesCopied2);
 
-    writeln(T.sizeof, " ", d1.total!"usecs", " ", d2.total!"usecs");
+    auto secs1 = (cast(double)(d1.total!"nsecs")) / 1_000_000_000.0;
+    auto secs2 = (cast(double)(d2.total!"nsecs")) / 1_000_000_000.0;
+    auto GB1 = (cast(double)bytesCopied1) / 1_000_000_000.0;
+    auto GB2 = (cast(double)bytesCopied2) / 1_000_000_000.0;
+    auto GBperSec1 = GB1 / secs1;
+    auto GBperSec2 = GB2 / secs2;
+    writeln(T.sizeof, " ", GBperSec1, " ", GBperSec2);
+    stdout.flush();
 }
 
 struct S1 { ubyte x; }
@@ -231,7 +247,8 @@ struct S65536 { ubyte[65536] x; }
 void main()
 {
     // For performing benchmarks
-    writeln("size(bytes) memcpyC memcpyD");
+    writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
+    stdout.flush();
     test!S1;
     test!S2;
     test!S4;
@@ -251,18 +268,18 @@ void main()
     test!S65536;
 
     // For testing integrity
-    writeln("");
-    writeln("size(bytes) memcpyC memcpyD");
-    test!bool;
-    test!ubyte;
-    test!byte;
-    test!ushort;
-    test!short;
-    test!uint;
-    test!int;
-    test!ulong;
-    test!long;
-    test!float;
-    test!double;
-    test!real;
+    // writeln("");
+    // writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
+    // test!bool;
+    // test!ubyte;
+    // test!byte;
+    // test!ushort;
+    // test!short;
+    // test!uint;
+    // test!int;
+    // test!ulong;
+    // test!long;
+    // test!float;
+    // test!double;
+    // test!real;
 }

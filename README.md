@@ -45,10 +45,10 @@ Compiled with `dmd memcpyd.d`.
 I don't know why memcpyD outperforms memcpyC in VirtualBox, but I believe it is a fluke.  I don't expect such results on real hardware.
 
 
-### Graph Generation
-Graphs generated with gnuplot:
+### How run
+
 ```
-set autoscale
-set logscale xy 2
-plot 'data.txt' using "size":"memcpyC" with lines, '' using "size":"memcpyD" with lines
+dmd -O -inline memcpyd.d 
+./memcpyd 2>&1 | tee data.txt
+rdmd plot.d data.txt
 ```
