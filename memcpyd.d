@@ -91,7 +91,7 @@ void memcpyD(T)(T* src, T* dst)
         }
         else version(D_SIMD)
         {
-            static if (T.sizeof < 1024)
+            static if (T.sizeof <= 1024)
             {
                 static foreach(i; 0 .. T.sizeof/16)
                 {
