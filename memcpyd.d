@@ -7,40 +7,59 @@ import std.stdio;
 private struct S16 { ubyte[16] x; }
 private struct S32 { ubyte[32] x; }
 
-void memcpyC(T)(T* src, T* dst)
+void memcpyC(T)(const T* src, T* dst)
 {
+    pragma(inline, true)
     memcpy(dst, src, T.sizeof);
 }
 
-void memcpyD(T)(T* src, T* dst)
+pragma(inline, true)
+void memcpyD(T)(const T* src, T* dst)
     if (isScalarType!T)
 {
     // writeln("Copying for " ~ T.stringof);
     *dst = *src;
 }
 
-void memcpyD(T)(T* src, T* dst)
+void memcpyDRepMovsb(T)(const T* src, T* dst)
+{
+    asm pure nothrow @nogc
+    {
+        mov RSI, src;
+        mov RDI, dst;
+        cld;
+        mov RCX, T.sizeof;
+        rep;
+        movsb;
+    }
+}
+
+void memcpyD(T)(const T* src, T* dst)
     if (is(T == struct))
 {
     // writeln("Copying for " ~ T.stringof);
     static if (!is(T == ubyte) && T.sizeof == 1)
     {
-        memcpyD(cast(ubyte*)src, cast(ubyte*)dst);
+        pragma(inline, true)
+        memcpyD(cast(const ubyte*)src, cast(ubyte*)dst);
         return;
     }
     else static if (!is(T == ushort) && T.sizeof == 2)
     {
-        memcpyD(cast(ushort*)src, cast(ushort*)dst);
+        pragma(inline, true)
+        memcpyD(cast(const ushort*)src, cast(ushort*)dst);
         return;
     }
     else static if (!is(T == uint) && T.sizeof == 4)
     {
-        memcpyD(cast(uint*)src, cast(uint*)dst);
+        pragma(inline, true)
+        memcpyD(cast(const uint*)src, cast(uint*)dst);
         return;
     }
     else static if (!is(T == ulong) && T.sizeof == 8)
     {
-        memcpyD(cast(ulong*)src, cast(ulong*)dst);
+        pragma(inline, true)
+        memcpyD(cast(const ulong*)src, cast(ulong*)dst);
         return;
     }
     else static if (T.sizeof == 16)
@@ -48,13 +67,14 @@ void memcpyD(T)(T* src, T* dst)
         version(D_SIMD)
         {
             import core.simd: void16;
-            *(cast(void16*)dst) = *(cast(void16*)src);
+            *(cast(void16*)dst) = *(cast(const void16*)src);
         }
         else
         {
             static foreach(i; 0 .. T.sizeof/8)
             {
-                memcpyD((cast(ulong*)src) + i, (cast(ulong*)dst) + i);
+                pragma(inline, true)
+                memcpyD((cast(const ulong*)src) + i, (cast(ulong*)dst) + i);
             }
         }
 
@@ -66,13 +86,14 @@ void memcpyD(T)(T* src, T* dst)
         version(D_AVX)
         {
             import core.simd: void32;
-            *(cast(void32*)dst) = *(cast(void32*)src);
+            *(cast(const void32*)dst) = *(cast(void32*)src);
         }
         else
         {
             static foreach(i; 0 .. T.sizeof/16)
             {
-                memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
+                pragma(inline, true)
+                memcpyD((cast(const S16*)src) + i, (cast(S16*)dst) + i);
             }
         }
 
@@ -84,7 +105,7 @@ void memcpyD(T)(T* src, T* dst)
         {
             static foreach(i; 0 .. T.sizeof/32)
             {
-                memcpyD((cast(S32*)src) + i, (cast(S32*)dst) + i);
+                memcpyD((cast(const S32*)src) + i, (cast(S32*)dst) + i);
             }
 
             return;
@@ -93,28 +114,34 @@ void memcpyD(T)(T* src, T* dst)
         {
             static if (T.sizeof <= 1024)
             {
+                import core.simd: void16;
+
                 static foreach(i; 0 .. T.sizeof/16)
                 {
-                    memcpyD((cast(S16*)src) + i, (cast(S16*)dst) + i);
+                    // This won't inline in DMD for some reason
+                    // pragma(inline, true)
+                    // memcpyD((cast(const S16*)src) + i, (cast(S16*)dst) + i);
+
+                    *((cast(void16*)dst) + i) = *((cast(const void16*)src) + i);
                 }
 
                 return;
             }
+            else
+            {
+                pragma(inline, true)
+                memcpyDRepMovsb(src, dst);
 
-            // else will fall down to `rep movsb` implementation below
+                return;
+            }
         }
-
-        asm pure nothrow @nogc
+        else
         {
-            mov RSI, src;
-            mov RDI, dst;
-            cld;
-            mov RCX, T.sizeof;
-            rep;
-            movsb;
-        }
+            pragma(inline, true)
+            memcpyDRepMovsb(src, dst);
 
-        return;
+            return;
+        }
     }
 }
 
