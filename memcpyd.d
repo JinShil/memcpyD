@@ -229,8 +229,8 @@ void test(T)()
 {
     // Just an arbitrarily sized buffer big enought to store test data
     // We will offset from this buffer to create unaligned data
-    ubyte[1024*1024] buf1;
-    ubyte[1024*1024] buf2;
+    ubyte[66000] buf1;
+    ubyte[66000] buf2;
 
     double TotalGBperSec1 = 0.0;
     double TotalGBperSec2 = 0.0;
