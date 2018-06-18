@@ -66,8 +66,8 @@ void memcpyD(T)(const T* src, T* dst)
     {
         version(D_SIMD)
         {
-            import core.simd: void16;
-            *(cast(void16*)dst) = *(cast(const void16*)src);
+            import core.simd: void16, storeUnaligned, loadUnaligned;
+            storeUnaligned(cast(void16*)dst, loadUnaligned(cast(const void16*)src));
         }
         else
         {
@@ -114,7 +114,7 @@ void memcpyD(T)(const T* src, T* dst)
         {
             static if (T.sizeof <= 1024)
             {
-                import core.simd: void16;
+                import core.simd: void16, storeUnaligned, loadUnaligned;
 
                 static foreach(i; 0 .. T.sizeof/16)
                 {
@@ -122,7 +122,7 @@ void memcpyD(T)(const T* src, T* dst)
                     // pragma(inline, true)
                     // memcpyD((cast(const S16*)src) + i, (cast(S16*)dst) + i);
 
-                    *((cast(void16*)dst) + i) = *((cast(const void16*)src) + i);
+                    storeUnaligned((cast(void16*)dst) + i, loadUnaligned((cast(const void16*)src) + i));
                 }
 
                 return;
