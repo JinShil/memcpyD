@@ -38,25 +38,25 @@ void memcpyD(T)(const T* src, T* dst)
     if (is(T == struct))
 {
     // writeln("Copying for " ~ T.stringof);
-    static if (!is(T == ubyte) && T.sizeof == 1)
+    static if (T.sizeof == 1)
     {
         pragma(inline, true)
         memcpyD(cast(const ubyte*)src, cast(ubyte*)dst);
         return;
     }
-    else static if (!is(T == ushort) && T.sizeof == 2)
+    else static if (T.sizeof == 2)
     {
         pragma(inline, true)
         memcpyD(cast(const ushort*)src, cast(ushort*)dst);
         return;
     }
-    else static if (!is(T == uint) && T.sizeof == 4)
+    else static if (T.sizeof == 4)
     {
         pragma(inline, true)
         memcpyD(cast(const uint*)src, cast(uint*)dst);
         return;
     }
-    else static if (!is(T == ulong) && T.sizeof == 8)
+    else static if (T.sizeof == 8)
     {
         pragma(inline, true)
         memcpyD(cast(const ulong*)src, cast(ulong*)dst);
