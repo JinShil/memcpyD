@@ -173,7 +173,7 @@ Duration benchmark(T, alias f)(T* src, T* dst, ulong* bytesCopied)
 
     auto swt = StopWatch(AutoStart.yes);
     swt.reset();
-    while(swt.peek().total!"nsecs" < 1_000_000_000)
+    while(swt.peek().total!"msecs" < 200)
     {
         auto sw = StopWatch(AutoStart.yes);
         sw.reset();
@@ -189,23 +189,23 @@ Duration benchmark(T, alias f)(T* src, T* dst, ulong* bytesCopied)
     return result;
 }
 
-void init(T)(ref T v)
+void init(T)(T* v)
 {
     static if (is (T == float))
     {
-        v = uniform(0.0f, 9_999_999.0f);
+        *v = uniform(0.0f, 9_999_999.0f);
     }
     else static if (is(T == double))
     {
-        v = uniform(0.0, 9_999_999.0);
+        *v = uniform(0.0, 9_999_999.0);
     }
     else static if (is(T == real))
     {
-        v = uniform(0.0L, 9_999_999.0L);
+        *v = uniform(0.0L, 9_999_999.0L);
     }
     else
     {
-        auto m = (cast(ubyte*) &v)[0 .. T.sizeof];
+        auto m = (cast(ubyte*) v)[0 .. T.sizeof];
         for(int i = 0; i < m.length; i++)
         {
             m[i] = uniform!byte;
@@ -213,44 +213,73 @@ void init(T)(ref T v)
     }
 }
 
-void verify(T)(const ref T a, const ref T b)
+void verify(T)(const T* a, const T* b)
 {
-    auto aa = (cast(ubyte*)&a)[0..T.sizeof];
-    auto bb = (cast(ubyte*)&b)[0..T.sizeof];
+    auto aa = (cast(ubyte*)a)[0..T.sizeof];
+    auto bb = (cast(ubyte*)b)[0..T.sizeof];
     for(int i = 0; i < T.sizeof; i++)
     {
         assert(aa[i] == bb[i]);
     }
 }
 
+bool average;
+
 void test(T)()
 {
-    T d;
-    T s;
+    // Just an arbitrarily sized buffer big enought to store test data
+    // We will offset from this buffer to create unaligned data
+    ubyte[1024*1024] buf1;
+    ubyte[1024*1024] buf2;
 
-    init(d);
-    init(s);
-    memcpyC(&s, &d);
-    verify(s, d);
+    double TotalGBperSec1 = 0.0;
+    double TotalGBperSec2 = 0.0;
+    enum alignments = 16;
 
-    init(d);
-    init(s);
-    memcpyD(&s, &d);
-    verify(s, d);
+    // test align(0) through align(16) for now
+    foreach(i; 0..alignments)
+    {
+        {
+            T* d = cast(T*)(&buf1[i]);
+            T* s = cast(T*)(&buf2[i]);
 
-    ulong bytesCopied1;
-    ulong bytesCopied2;
-    immutable d1 = benchmark!(T, memcpyC)(&s, &d, &bytesCopied1);
-    immutable d2 = benchmark!(T, memcpyD)(&s, &d, &bytesCopied2);
+            init(d);
+            init(s);
+            memcpyC(s, d);
+            verify(s, d);
 
-    auto secs1 = (cast(double)(d1.total!"nsecs")) / 1_000_000_000.0;
-    auto secs2 = (cast(double)(d2.total!"nsecs")) / 1_000_000_000.0;
-    auto GB1 = (cast(double)bytesCopied1) / 1_000_000_000.0;
-    auto GB2 = (cast(double)bytesCopied2) / 1_000_000_000.0;
-    auto GBperSec1 = GB1 / secs1;
-    auto GBperSec2 = GB2 / secs2;
-    writeln(T.sizeof, " ", GBperSec1, " ", GBperSec2);
-    stdout.flush();
+            init(d);
+            init(s);
+            memcpyD(s, d);
+            verify(s, d);
+
+            ulong bytesCopied1;
+            ulong bytesCopied2;
+            immutable d1 = benchmark!(T, memcpyC)(s, d, &bytesCopied1);
+            immutable d2 = benchmark!(T, memcpyD)(s, d, &bytesCopied2);
+
+            auto secs1 = (cast(double)(d1.total!"nsecs")) / 1_000_000_000.0;
+            auto secs2 = (cast(double)(d2.total!"nsecs")) / 1_000_000_000.0;
+            auto GB1 = (cast(double)bytesCopied1) / 1_000_000_000.0;
+            auto GB2 = (cast(double)bytesCopied2) / 1_000_000_000.0;
+            auto GBperSec1 = GB1 / secs1;
+            auto GBperSec2 = GB2 / secs2;
+            if (average)
+            {
+                TotalGBperSec1 += GBperSec1;
+                TotalGBperSec2 += GBperSec2;
+            }
+            else
+            {
+                writeln(T.sizeof, " ", GBperSec1, " ", GBperSec2);
+            }
+        }
+    }
+
+    if (average)
+    {
+        writeln(T.sizeof, " ", TotalGBperSec1 / alignments, " ", TotalGBperSec2 / alignments);
+    }
 }
 
 struct S1 { ubyte x; }
@@ -271,8 +300,10 @@ struct S16384 { ubyte[16384] x; }
 struct S32768 { ubyte[32768] x; }
 struct S65536 { ubyte[65536] x; }
 
-void main()
+void main(string[] args)
 {
+    average = args.length >= 1;
+
     // For performing benchmarks
     writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
     stdout.flush();

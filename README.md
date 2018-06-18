@@ -49,6 +49,6 @@ I don't know why memcpyD outperforms memcpyC in VirtualBox, but I believe it is 
 
 ```
 dmd -O -inline memcpyd.d 
-./memcpyd 2>&1 | tee data.txt
+./memcpyd average 2>&1 | tee data.txt
 rdmd plot.d data.txt
 ```
