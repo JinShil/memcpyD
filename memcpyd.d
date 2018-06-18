@@ -304,7 +304,7 @@ struct S65536 { ubyte[65536] x; }
 
 void main(string[] args)
 {
-    average = args.length >= 1;
+    average = args.length >= 2;
 
     // For performing benchmarks
     writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
