@@ -26,20 +26,16 @@ It is not a goal of this endeavor to implement a faster `memcpy` in D, but rathe
 memcpyD, so far, is able to meet or beat memcpyC's performance in most tests.
 
 ### Windows 10, Intel Core i5 6300U (Microsoft Surface Book)
-Compiled with `dmd -m64 memcpyd.d`.
+Compiled with `dmd -m64 -O -inline memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/surfacebook.png)
 
 ### Windows 10 Intel Core i7 7700T
-Compiled with `dmd -m64 memcpyd.d`.
+Compiled with `dmd -m64 -O -inline memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win10.png)
-
-### Windows 8, AMD FX-8370
-Compiled with `dmd -m64 memcpyd.d`.
-![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/win8amd8370.png)
 
 
 ### Linux VirtualBox Guest on Windows 10 Host, Intel Core i7 7700T
-Compiled with `dmd memcpyd.d`.
+Compiled with `dmd -O -inline memcpyd.d`.
 ![](https://raw.githubusercontent.com/JinShil/memcpyD/master/images/linux.png)
 
 I don't know why memcpyD outperforms memcpyC in VirtualBox, but I believe it is a fluke.  I don't expect such results on real hardware.
@@ -48,7 +44,7 @@ I don't know why memcpyD outperforms memcpyC in VirtualBox, but I believe it is 
 ### How run
 
 ```
-dmd -O -inline memcpyd.d 
+dmd -O -inline memcpyd.d
 ./memcpyd average 2>&1 | tee data.txt
 rdmd plot.d data.txt
 ```
