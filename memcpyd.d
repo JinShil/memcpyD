@@ -272,6 +272,7 @@ void test(T)()
             else
             {
                 writeln(T.sizeof, " ", GBperSec1, " ", GBperSec2);
+                stdout.flush();
             }
         }
     }
@@ -279,6 +280,7 @@ void test(T)()
     if (average)
     {
         writeln(T.sizeof, " ", TotalGBperSec1 / alignments, " ", TotalGBperSec2 / alignments);
+        stdout.flush();
     }
 }
 
