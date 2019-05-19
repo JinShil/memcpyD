@@ -4,8 +4,8 @@ import std.random;
 import std.traits;
 import std.stdio;
 
-private struct S16 { ubyte[16] x; }
-private struct S32 { ubyte[32] x; }
+private struct S16 {  ubyte[16] x; }
+private align(16) struct S32 {  ubyte[32] x; }
 
 void memcpyC(T)(const T* src, T* dst)
 {
@@ -66,6 +66,7 @@ void memcpyD(T)(const T* src, T* dst)
     {
         version(D_SIMD)
         {
+            pragma(msg, "SIMD");
             import core.simd: void16, storeUnaligned, loadUnaligned;
             storeUnaligned(cast(void16*)dst, loadUnaligned(cast(const void16*)src));
         }
@@ -86,7 +87,7 @@ void memcpyD(T)(const T* src, T* dst)
         version(D_AVX)
         {
             import core.simd: void32;
-            *(cast(const void32*)dst) = *(cast(void32*)src);
+            *(cast(void32*)dst) = *(cast(void32*)src);
         }
         else
         {
@@ -103,6 +104,7 @@ void memcpyD(T)(const T* src, T* dst)
     {
         version(D_AVX)
         {
+            pragma(msg, "AVX");
             static foreach(i; 0 .. T.sizeof/32)
             {
                 memcpyD((cast(const S32*)src) + i, (cast(S32*)dst) + i);
@@ -110,7 +112,8 @@ void memcpyD(T)(const T* src, T* dst)
 
             return;
         }
-        else version(D_SIMD)
+        else 
+        version(D_SIMD)
         {
             static if (T.sizeof <= 1024)
             {
@@ -229,8 +232,8 @@ void test(T)()
 {
     // Just an arbitrarily sized buffer big enought to store test data
     // We will offset from this buffer to create unaligned data
-    ubyte[66000] buf1;
-    ubyte[66000] buf2;
+    align(16) ubyte[66000] buf1;
+    align(16) ubyte[66000] buf2;
 
     double TotalGBperSec1 = 0.0;
     double TotalGBperSec2 = 0.0;
@@ -240,8 +243,16 @@ void test(T)()
     foreach(i; 0..alignments)
     {
         {
-            T* d = cast(T*)(&buf1[i]);
-            T* s = cast(T*)(&buf2[i]);
+            static if (T.sizeof < 32)
+            {
+                T* d = cast(T*)(&buf1[i]);
+                T* s = cast(T*)(&buf2[i]);
+            }
+            else // AVX code crashes on misalignment, so for now, always align(16)
+            {
+                T* d = cast(T*)(&buf1[0]);
+                T* s = cast(T*)(&buf2[0]);
+            }
 
             init(d);
             init(s);
@@ -290,17 +301,17 @@ struct S4 { uint x; }
 struct S8 { ulong x; }
 // struct S16 { ubyte[16] x; }
 // struct S32 { ubyte[32] x; }
-struct S64 { ubyte[64] x; }
-struct S128 { ubyte[128] x; }
-struct S256 { ubyte[256] x; }
-struct S512 { ubyte[512] x; }
-struct S1024 { ubyte[1024] x; }
-struct S2048 { ubyte[2048] x; }
-struct S4096 { ubyte[4096] x; }
-struct S8192 { ubyte[8192] x; }
-struct S16384 { ubyte[16384] x; }
-struct S32768 { ubyte[32768] x; }
-struct S65536 { ubyte[65536] x; }
+align(16) struct S64 { ubyte[64] x; }
+align(16) struct S128 { ubyte[128] x; }
+align(16) struct S256 { ubyte[256] x; }
+align(16) struct S512 { ubyte[512] x; }
+align(16) struct S1024 { ubyte[1024] x; }
+align(16) struct S2048 { ubyte[2048] x; }
+align(16) struct S4096 { ubyte[4096] x; }
+align(16) struct S8192 { ubyte[8192] x; }
+align(16) struct S16384 { ubyte[16384] x; }
+align(16) struct S32768 { ubyte[32768] x; }
+align(16) struct S65536 { ubyte[65536] x; }
 
 void main(string[] args)
 {
