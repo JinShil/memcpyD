@@ -4,29 +4,37 @@ import std.random;
 import std.traits;
 import std.stdio;
 
-private struct S16 {  ubyte[16] x; }
-private align(16) struct S32 {  ubyte[32] x; }
+struct S(size_t Size)
+{
+    ubyte[Size] x;
+}
 
-void memcpyC(T)(const T* src, T* dst)
+bool isPowerOf2(T)(T x)
+    if (isIntegral!T)
+{
+    return (x != 0) && ((x & (x - 1)) == 0);
+}
+
+void memcpyC(T)(T* dst, const T* src)
 {
     pragma(inline, true)
     memcpy(dst, src, T.sizeof);
 }
 
-pragma(inline, true)
-void memcpyD(T)(const T* src, T* dst)
+void memcpyD(T)(T* dst, const T* src)
     if (isScalarType!T)
 {
-    // writeln("Copying for " ~ T.stringof);
+    pragma(inline, true)
     *dst = *src;
 }
 
-void memcpyDRepMovsb(T)(const T* src, T* dst)
+void memcpyDRepMovsb(T)(T* dst, const T* src)
 {
+    // pragma(inline, true) // cannot inline a function with ASM in DMD
     asm pure nothrow @nogc
     {
-        mov RSI, src;
-        mov RDI, dst;
+        mov RSI, dst;
+        mov RDI, src;
         cld;
         mov RCX, T.sizeof;
         rep;
@@ -34,36 +42,144 @@ void memcpyDRepMovsb(T)(const T* src, T* dst)
     }
 }
 
-void memcpyD(T)(const T* src, T* dst)
+// This implementation can't be @safe because it does
+// pointer arithmetic
+private void memcpyDUnsafe(T)(T* dst, const T* src) @trusted
     if (is(T == struct))
 {
-    // writeln("Copying for " ~ T.stringof);
+    pragma(inline, true)
+    static if (T.sizeof == 3)
+    {
+        memcpyD(cast(ushort*)dst, cast(const ushort*)src);
+        memcpyD(cast(ubyte*)dst + ushort.sizeof, cast(const ubyte*)src + ushort.sizeof);
+        return;
+    }
+    else static if (T.sizeof == 5)
+    {
+        memcpyD(cast(uint*)dst, cast(const uint*)src);
+        memcpyD(cast(ubyte*)dst + uint.sizeof, cast(const ubyte*)src + uint.sizeof);
+        return;
+    }
+    else static if (T.sizeof == 6)
+    {
+        auto s = cast(const uint*)src;
+        auto d = cast(uint*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 7)
+    {
+        auto s = cast(const uint*)src;
+        auto d = cast(uint*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(S!3*)(d + 1), cast(const S!3*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 9)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(ubyte*)(d + 1), cast(const ubyte*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 10)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 11)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(S!3*)(d + 1), cast(const S!3*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 12)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(uint*)(d + 1), cast(const uint*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 13)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(S!5*)(d + 1), cast(const S!5*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 14)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(S!6*)(d + 1), cast(const S!6*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 15)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(S!7*)(d + 1), cast(const S!7*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 17)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(ubyte*)(d + 1), cast(const ubyte*)(s + 1));
+        return;
+    }
+    else static if (T.sizeof == 18)
+    {
+        auto s = cast(const ulong*)src;
+        auto d = cast(ulong*)dst;
+        memcpyD(d, s);
+        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
+        return;
+    }
+}
+
+void memcpyD(T)(T* dst, const T* src)
+    if (is(T == struct))
+{
     static if (T.sizeof == 1)
     {
         pragma(inline, true)
-        memcpyD(cast(const ubyte*)src, cast(ubyte*)dst);
+        memcpyD(cast(ubyte*)dst, cast(const ubyte*)src);
         return;
     }
     else static if (T.sizeof == 2)
     {
         pragma(inline, true)
-        memcpyD(cast(const ushort*)src, cast(ushort*)dst);
+        memcpyD(cast(ushort*)dst, cast(const ushort*)src);
         return;
     }
     else static if (T.sizeof == 4)
     {
         pragma(inline, true)
-        memcpyD(cast(const uint*)src, cast(uint*)dst);
+        memcpyD(cast(uint*)dst, cast(const uint*)src);
         return;
     }
     else static if (T.sizeof == 8)
     {
         pragma(inline, true)
-        memcpyD(cast(const ulong*)src, cast(ulong*)dst);
+        memcpyD(cast(ulong*)dst, cast(const ulong*)src);
         return;
     }
     else static if (T.sizeof == 16)
     {
+        pragma(inline, true)
         version(D_SIMD)
         {
             pragma(msg, "SIMD");
@@ -74,27 +190,32 @@ void memcpyD(T)(const T* src, T* dst)
         {
             static foreach(i; 0 .. T.sizeof/8)
             {
-                pragma(inline, true)
-                memcpyD((cast(const ulong*)src) + i, (cast(ulong*)dst) + i);
+                memcpyD((cast(ulong*)dst) + i, (cast(const ulong*)src) + i);
             }
         }
 
         return;
     }
+    else static if (T.sizeof < 32 && !isPowerOf2(T.sizeof))
+    {
+        pragma(inline, true)
+        memcpyDUnsafe(dst, src);
+        return;
+    }
     else static if (T.sizeof == 32)
     {
+        pragma(inline, true)
         // AVX implementation is unstable in DMD. It sporadically fails.
         version(D_AVX)
         {
             import core.simd: void32;
-            *(cast(void32*)dst) = *(cast(void32*)src);
+            *(cast(void32*)src) = *(cast(const void32*)dst);
         }
         else
         {
             static foreach(i; 0 .. T.sizeof/16)
             {
-                pragma(inline, true)
-                memcpyD((cast(const S16*)src) + i, (cast(S16*)dst) + i);
+                memcpyD((cast(S!16*)dst) + i, (cast(const S!16*)src) + i);
             }
         }
 
@@ -107,12 +228,12 @@ void memcpyD(T)(const T* src, T* dst)
             pragma(msg, "AVX");
             static foreach(i; 0 .. T.sizeof/32)
             {
-                memcpyD((cast(const S32*)src) + i, (cast(S32*)dst) + i);
+                memcpyD((cast(S!32*)dst) + i, (cast(const S!32*)src) + i);
             }
 
             return;
         }
-        else 
+        else
         version(D_SIMD)
         {
             static if (T.sizeof <= 1024)
@@ -123,7 +244,7 @@ void memcpyD(T)(const T* src, T* dst)
                 {
                     // This won't inline in DMD for some reason
                     // pragma(inline, true)
-                    // memcpyD((cast(const S16*)src) + i, (cast(S16*)dst) + i);
+                    // memcpyD((cast(const S16*)dst) + i, (cast(S16*)src) + i);
 
                     storeUnaligned((cast(void16*)dst) + i, loadUnaligned((cast(const void16*)src) + i));
                 }
@@ -133,7 +254,7 @@ void memcpyD(T)(const T* src, T* dst)
             else
             {
                 pragma(inline, true)
-                memcpyDRepMovsb(src, dst);
+                memcpyDRepMovsb(dst, src);
 
                 return;
             }
@@ -141,7 +262,7 @@ void memcpyD(T)(const T* src, T* dst)
         else
         {
             pragma(inline, true)
-            memcpyDRepMovsb(src, dst);
+            memcpyDRepMovsb(dst, src);
 
             return;
         }
@@ -158,6 +279,10 @@ void use(void* p)
         import ldc.llvmasm;
          __asm("", "r,~{memory}", p);
     }
+    version(GNU)
+    {
+        asm { "" : : "g" p : "memory"; }
+    }
 }
 
 void clobber()
@@ -167,9 +292,13 @@ void clobber()
         import ldc.llvmasm;
         __asm("", "~{memory}");
     }
+    version(GNU)
+    {
+        asm { "" : : : "memory"; }
+    }
 }
 
-Duration benchmark(T, alias f)(T* src, T* dst, ulong* bytesCopied)
+Duration benchmark(T, alias f)(T* dst, T* src, ulong* bytesCopied)
 {
     enum iterations = 2^^20 / T.sizeof;
     Duration result;
@@ -182,8 +311,9 @@ Duration benchmark(T, alias f)(T* src, T* dst, ulong* bytesCopied)
         sw.reset();
         foreach (_; 0 .. iterations)
         {
-            f(src, dst);
-            clobber();    // So optimizer doesn't remove code
+            use(dst);   // So optimizer doesn't remove code
+            f(dst, src);
+            use(src);   // So optimizer doesn't remove code
         }
         result += sw.peek();
         *bytesCopied += (iterations * T.sizeof);
@@ -230,16 +360,16 @@ bool average;
 
 void test(T)()
 {
-    // Just an arbitrarily sized buffer big enought to store test data
+    // Just an arbitrarily sized buffer big enough to store test data
     // We will offset from this buffer to create unaligned data
-    align(16) ubyte[66000] buf1;
-    align(16) ubyte[66000] buf2;
+    align(32) ubyte[66000] buf1;
+    align(32) ubyte[66000] buf2;
 
     double TotalGBperSec1 = 0.0;
     double TotalGBperSec2 = 0.0;
     enum alignments = 16;
 
-    // test align(0) through align(16) for now
+    // test align(0) through align(32) for now
     foreach(i; 0..alignments)
     {
         {
@@ -248,26 +378,23 @@ void test(T)()
                 T* d = cast(T*)(&buf1[i]);
                 T* s = cast(T*)(&buf2[i]);
             }
-            else // AVX code crashes on misalignment, so for now, always align(16)
+            else // AVX code crashes on misalignment, so for now, always align(32)
             {
                 T* d = cast(T*)(&buf1[0]);
                 T* s = cast(T*)(&buf2[0]);
             }
 
-            init(d);
-            init(s);
-            memcpyC(s, d);
-            verify(s, d);
-
-            init(d);
-            init(s);
-            memcpyD(s, d);
-            verify(s, d);
-
             ulong bytesCopied1;
             ulong bytesCopied2;
-            immutable d1 = benchmark!(T, memcpyC)(s, d, &bytesCopied1);
-            immutable d2 = benchmark!(T, memcpyD)(s, d, &bytesCopied2);
+            init(d);
+            init(s);
+            immutable d1 = benchmark!(T, memcpyC)(d, s, &bytesCopied1);
+            verify(d, s);
+
+            init(d);
+            init(s);
+            immutable d2 = benchmark!(T, memcpyD)(d, s, &bytesCopied2);
+            verify(d, s);
 
             auto secs1 = (cast(double)(d1.total!"nsecs")) / 1_000_000_000.0;
             auto secs2 = (cast(double)(d2.total!"nsecs")) / 1_000_000_000.0;
@@ -295,23 +422,6 @@ void test(T)()
     }
 }
 
-struct S1 { ubyte x; }
-struct S2 { ushort x; }
-struct S4 { uint x; }
-struct S8 { ulong x; }
-// struct S16 { ubyte[16] x; }
-// struct S32 { ubyte[32] x; }
-align(16) struct S64 { ubyte[64] x; }
-align(16) struct S128 { ubyte[128] x; }
-align(16) struct S256 { ubyte[256] x; }
-align(16) struct S512 { ubyte[512] x; }
-align(16) struct S1024 { ubyte[1024] x; }
-align(16) struct S2048 { ubyte[2048] x; }
-align(16) struct S4096 { ubyte[4096] x; }
-align(16) struct S8192 { ubyte[8192] x; }
-align(16) struct S16384 { ubyte[16384] x; }
-align(16) struct S32768 { ubyte[32768] x; }
-align(16) struct S65536 { ubyte[65536] x; }
 
 void main(string[] args)
 {
@@ -320,23 +430,22 @@ void main(string[] args)
     // For performing benchmarks
     writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
     stdout.flush();
-    test!S1;
-    test!S2;
-    test!S4;
-    test!S8;
-    test!S16;
-    test!S32;
-    test!S64;
-    test!S128;
-    test!S256;
-    test!S512;
-    test!S1024;
-    test!S2048;
-    test!S4096;
-    test!S8192;
-    test!S16384;
-    test!S32768;
-    test!S65536;
+    static foreach(i; 1..17)
+    {
+        test!(S!i);
+    }
+    test!(S!32);
+    test!(S!64);
+    test!(S!128);
+    test!(S!256);
+    test!(S!512);
+    test!(S!1024);
+    test!(S!2048);
+    test!(S!4096);
+    test!(S!8192);
+    test!(S!16384);
+    test!(S!32768);
+    test!(S!65536);
 
     // For testing integrity
     // writeln("");
