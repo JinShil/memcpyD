@@ -42,111 +42,60 @@ void memcpyDRepMovsb(T)(T* dst, const T* src)
     }
 }
 
-// This implementation can't be @safe because it does
-// pointer arithmetic
+// This implementation handles type sizes that are not powers of 2
+// This implementation can't be @safe because it does pointer arithmetic
 private void memcpyDUnsafe(T)(T* dst, const T* src) @trusted
     if (is(T == struct))
 {
-    pragma(inline, true)
     static if (T.sizeof == 3)
     {
-        memcpyD(cast(ushort*)dst, cast(const ushort*)src);
-        memcpyD(cast(ubyte*)dst + ushort.sizeof, cast(const ubyte*)src + ushort.sizeof);
-        return;
-    }
-    else static if (T.sizeof == 5)
-    {
-        memcpyD(cast(uint*)dst, cast(const uint*)src);
-        memcpyD(cast(ubyte*)dst + uint.sizeof, cast(const ubyte*)src + uint.sizeof);
-        return;
-    }
-    else static if (T.sizeof == 6)
-    {
+        pragma(inline, true)
         auto s = cast(const uint*)src;
         auto d = cast(uint*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof == 7)
-    {
-        auto s = cast(const uint*)src;
-        auto d = cast(uint*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(S!3*)(d + 1), cast(const S!3*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof == 9)
-    {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
         memcpyD(d, s);
         memcpyD(cast(ubyte*)(d + 1), cast(const ubyte*)(s + 1));
         return;
     }
-    else static if (T.sizeof == 10)
+    else static if (T.sizeof >= uint.sizeof && T.sizeof < long.sizeof)
     {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
+        pragma(inline, true)
+        alias TRemainder = S!(T.sizeof - uint.sizeof);
+        auto s = cast(const uint*)src;
+        auto d = cast(uint*)dst;
         memcpyD(d, s);
-        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
-        return;
+        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
     }
-    else static if (T.sizeof == 11)
+    else static if (T.sizeof >= ulong.sizeof && T.sizeof < S!16.sizeof)
     {
+        pragma(inline, true)
+        alias TRemainder = S!(T.sizeof - ulong.sizeof);
         auto s = cast(const ulong*)src;
         auto d = cast(ulong*)dst;
         memcpyD(d, s);
-        memcpyD(cast(S!3*)(d + 1), cast(const S!3*)(s + 1));
-        return;
+        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
     }
-    else static if (T.sizeof == 12)
+    else static if (T.sizeof >= S!16.sizeof && T.sizeof < S!32.sizeof)
     {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
+        pragma(inline, true)
+        alias TRemainder = S!(T.sizeof - S!16.sizeof);
+        auto s = cast(const S!16*)src;
+        auto d = cast(S!16*)dst;
         memcpyD(d, s);
-        memcpyD(cast(uint*)(d + 1), cast(const uint*)(s + 1));
-        return;
+        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
     }
-    else static if (T.sizeof == 13)
+    else static if (T.sizeof >= S!32.sizeof)
     {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
+        // TODO: Too large to inline
+        // pragma(inline, true)
+        alias TRemainder = S!(T.sizeof - S!32.sizeof);
+        auto s = cast(const S!32*)src;
+        auto d = cast(S!32*)dst;
         memcpyD(d, s);
-        memcpyD(cast(S!5*)(d + 1), cast(const S!5*)(s + 1));
-        return;
+        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
     }
-    else static if (T.sizeof == 14)
+    else
     {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(S!6*)(d + 1), cast(const S!6*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof == 15)
-    {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(S!7*)(d + 1), cast(const S!7*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof == 17)
-    {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(ubyte*)(d + 1), cast(const ubyte*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof == 18)
-    {
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(ushort*)(d + 1), cast(const ushort*)(s + 1));
-        return;
+        static assert(false, "Size not handled");
     }
 }
 
@@ -196,12 +145,6 @@ void memcpyD(T)(T* dst, const T* src)
 
         return;
     }
-    else static if (T.sizeof < 32 && !isPowerOf2(T.sizeof))
-    {
-        pragma(inline, true)
-        memcpyDUnsafe(dst, src);
-        return;
-    }
     else static if (T.sizeof == 32)
     {
         pragma(inline, true)
@@ -219,6 +162,12 @@ void memcpyD(T)(T* dst, const T* src)
             }
         }
 
+        return;
+    }
+    else static if (T.sizeof < 64 && !isPowerOf2(T.sizeof))
+    {
+        pragma(inline, true)
+        memcpyDUnsafe(dst, src);
         return;
     }
     else
@@ -430,12 +379,10 @@ void main(string[] args)
     // For performing benchmarks
     writeln("size(bytes) memcpyC(GB/s) memcpyD(GB/s)");
     stdout.flush();
-    static foreach(i; 1..17)
+    static foreach(i; 1..65)
     {
         test!(S!i);
     }
-    test!(S!32);
-    test!(S!64);
     test!(S!128);
     test!(S!256);
     test!(S!512);
