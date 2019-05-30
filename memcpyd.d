@@ -44,59 +44,19 @@ void memcpyDRepMovsb(T)(ref T dst, const ref T src)
 
 // This implementation handles type sizes that are not powers of 2
 // This implementation can't be @safe because it does pointer arithmetic
+pragma(inline, true);
 private void memcpyDUnsafe(T)(ref T dst, const ref T src) @trusted
-    if (is(T == struct))
+   if (is(T == struct))
 {
-    static if (T.sizeof == 3)
-    {
-        pragma(inline, true)
-        auto s = cast(const uint*)(&src);
-        auto d = cast(uint*)(&dst);
-        memcpyD(*d, *s);
-        memcpyD(*cast(ubyte*)(d + 1), *cast(const ubyte*)(s + 1));
-        return;
-    }
-    else static if (T.sizeof >= uint.sizeof && T.sizeof < long.sizeof)
-    {
-        pragma(inline, true)
-        alias TRemainder = S!(T.sizeof - uint.sizeof);
-        auto s = cast(const uint*)(&src);
-        auto d = cast(uint*)(&dst);
-        memcpyD(*d, *s);
-        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
-    }
-    else static if (T.sizeof >= ulong.sizeof && T.sizeof < S!16.sizeof)
-    {
-        pragma(inline, true)
-        alias TRemainder = S!(T.sizeof - ulong.sizeof);
-        auto s = cast(const ulong*)(&src);
-        auto d = cast(ulong*)(&dst);
-        memcpyD(*d, *s);
-        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
-    }
-    else static if (T.sizeof >= S!16.sizeof && T.sizeof < S!32.sizeof)
-    {
-        pragma(inline, true)
-        alias TRemainder = S!(T.sizeof - S!16.sizeof);
-        auto s = cast(const S!16*)(&src);
-        auto d = cast(S!16*)(&dst);
-        memcpyD(*d, *s);
-        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
-    }
-    else static if (T.sizeof >= S!32.sizeof)
-    {
-        // TODO: Too large to inline
-        // pragma(inline, true)
-        alias TRemainder = S!(T.sizeof - S!32.sizeof);
-        auto s = cast(const S!32*)(&src);
-        auto d = cast(S!32*)(&dst);
-        memcpyD(*d, *s);
-        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
-    }
-    else
-    {
-        static assert(false, "Size not handled");
-    }
+   import core.bitop: bsr;
+
+   static assert(T.sizeof != 0);
+   enum prevPowerOf2 = 1LU << bsr(T.sizeof);
+   alias TRemainder = S!(T.sizeof - prevPowerOf2);
+   auto s = cast(const S!prevPowerOf2*)(&src);
+   auto d = cast(S!prevPowerOf2*)(&dst);
+   memcpyD(*d, *s);
+   memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
 }
 
 void memcpyD(T)(ref T dst, const ref T src)
