@@ -15,20 +15,20 @@ bool isPowerOf2(T)(T x)
     return (x != 0) && ((x & (x - 1)) == 0);
 }
 
-void memcpyC(T)(T* dst, const T* src)
+void memcpyC(T)(ref T dst, const ref T src)
 {
     pragma(inline, true)
-    memcpy(dst, src, T.sizeof);
+    memcpy(&dst, &src, T.sizeof);
 }
 
-void memcpyD(T)(T* dst, const T* src)
+void memcpyD(T)(ref T dst, const ref T src)
     if (isScalarType!T)
 {
     pragma(inline, true)
-    *dst = *src;
+    dst = src;
 }
 
-void memcpyDRepMovsb(T)(T* dst, const T* src)
+void memcpyDRepMovsb(T)(ref T dst, const ref T src)
 {
     // pragma(inline, true) // cannot inline a function with ASM in DMD
     asm pure nothrow @nogc
@@ -44,54 +44,54 @@ void memcpyDRepMovsb(T)(T* dst, const T* src)
 
 // This implementation handles type sizes that are not powers of 2
 // This implementation can't be @safe because it does pointer arithmetic
-private void memcpyDUnsafe(T)(T* dst, const T* src) @trusted
+private void memcpyDUnsafe(T)(ref T dst, const ref T src) @trusted
     if (is(T == struct))
 {
     static if (T.sizeof == 3)
     {
         pragma(inline, true)
-        auto s = cast(const uint*)src;
-        auto d = cast(uint*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(ubyte*)(d + 1), cast(const ubyte*)(s + 1));
+        auto s = cast(const uint*)(&src);
+        auto d = cast(uint*)(&dst);
+        memcpyD(*d, *s);
+        memcpyD(*cast(ubyte*)(d + 1), *cast(const ubyte*)(s + 1));
         return;
     }
     else static if (T.sizeof >= uint.sizeof && T.sizeof < long.sizeof)
     {
         pragma(inline, true)
         alias TRemainder = S!(T.sizeof - uint.sizeof);
-        auto s = cast(const uint*)src;
-        auto d = cast(uint*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
+        auto s = cast(const uint*)(&src);
+        auto d = cast(uint*)(&dst);
+        memcpyD(*d, *s);
+        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
     }
     else static if (T.sizeof >= ulong.sizeof && T.sizeof < S!16.sizeof)
     {
         pragma(inline, true)
         alias TRemainder = S!(T.sizeof - ulong.sizeof);
-        auto s = cast(const ulong*)src;
-        auto d = cast(ulong*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
+        auto s = cast(const ulong*)(&src);
+        auto d = cast(ulong*)(&dst);
+        memcpyD(*d, *s);
+        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
     }
     else static if (T.sizeof >= S!16.sizeof && T.sizeof < S!32.sizeof)
     {
         pragma(inline, true)
         alias TRemainder = S!(T.sizeof - S!16.sizeof);
-        auto s = cast(const S!16*)src;
-        auto d = cast(S!16*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
+        auto s = cast(const S!16*)(&src);
+        auto d = cast(S!16*)(&dst);
+        memcpyD(*d, *s);
+        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
     }
     else static if (T.sizeof >= S!32.sizeof)
     {
         // TODO: Too large to inline
         // pragma(inline, true)
         alias TRemainder = S!(T.sizeof - S!32.sizeof);
-        auto s = cast(const S!32*)src;
-        auto d = cast(S!32*)dst;
-        memcpyD(d, s);
-        memcpyD(cast(TRemainder*)(d + 1), cast(const TRemainder*)(s + 1));
+        auto s = cast(const S!32*)(&src);
+        auto d = cast(S!32*)(&dst);
+        memcpyD(*d, *s);
+        memcpyD(*cast(TRemainder*)(d + 1), *cast(const TRemainder*)(s + 1));
     }
     else
     {
@@ -99,31 +99,31 @@ private void memcpyDUnsafe(T)(T* dst, const T* src) @trusted
     }
 }
 
-void memcpyD(T)(T* dst, const T* src)
+void memcpyD(T)(ref T dst, const ref T src)
     if (is(T == struct))
 {
     static if (T.sizeof == 1)
     {
         pragma(inline, true)
-        memcpyD(cast(ubyte*)dst, cast(const ubyte*)src);
+        memcpyD(*cast(ubyte*)(&dst), *cast(const ubyte*)(&src));
         return;
     }
     else static if (T.sizeof == 2)
     {
         pragma(inline, true)
-        memcpyD(cast(ushort*)dst, cast(const ushort*)src);
+        memcpyD(*cast(ushort*)(&dst), *cast(const ushort*)(&src));
         return;
     }
     else static if (T.sizeof == 4)
     {
         pragma(inline, true)
-        memcpyD(cast(uint*)dst, cast(const uint*)src);
+        memcpyD(*cast(uint*)(&dst), *cast(const uint*)(&src));
         return;
     }
     else static if (T.sizeof == 8)
     {
         pragma(inline, true)
-        memcpyD(cast(ulong*)dst, cast(const ulong*)src);
+        memcpyD(*cast(ulong*)(&dst), *cast(const ulong*)(&src));
         return;
     }
     else static if (T.sizeof == 16)
@@ -133,13 +133,13 @@ void memcpyD(T)(T* dst, const T* src)
         {
             pragma(msg, "SIMD");
             import core.simd: void16, storeUnaligned, loadUnaligned;
-            storeUnaligned(cast(void16*)dst, loadUnaligned(cast(const void16*)src));
+            storeUnaligned(cast(void16*)(&dst), loadUnaligned(cast(const void16*)(&src)));
         }
         else
         {
             static foreach(i; 0 .. T.sizeof/8)
             {
-                memcpyD((cast(ulong*)dst) + i, (cast(const ulong*)src) + i);
+                memcpyD(*(cast(ulong*)(&dst) + i), *(cast(const ulong*)src + i));
             }
         }
 
@@ -152,13 +152,13 @@ void memcpyD(T)(T* dst, const T* src)
         version(D_AVX)
         {
             import core.simd: void32;
-            *(cast(void32*)src) = *(cast(const void32*)dst);
+            *(cast(void32*)(&src)) = *(cast(const void32*)(&dst));
         }
         else
         {
             static foreach(i; 0 .. T.sizeof/16)
             {
-                memcpyD((cast(S!16*)dst) + i, (cast(const S!16*)src) + i);
+                memcpyD(*(cast(S!16*)(&dst) + i), *(cast(const S!16*)(&src) + i));
             }
         }
 
@@ -166,7 +166,7 @@ void memcpyD(T)(T* dst, const T* src)
     }
     else static if (T.sizeof < 64 && !isPowerOf2(T.sizeof))
     {
-        pragma(inline, true)
+        //pragma(inline, true)
         memcpyDUnsafe(dst, src);
         return;
     }
@@ -177,7 +177,7 @@ void memcpyD(T)(T* dst, const T* src)
             pragma(msg, "AVX");
             static foreach(i; 0 .. T.sizeof/32)
             {
-                memcpyD((cast(S!32*)dst) + i, (cast(const S!32*)src) + i);
+                memcpyD(*(cast(S!32*)(&dst) + i), *(cast(const S!32*)&src + i));
             }
 
             return;
@@ -195,7 +195,7 @@ void memcpyD(T)(T* dst, const T* src)
                     // pragma(inline, true)
                     // memcpyD((cast(const S16*)dst) + i, (cast(S16*)src) + i);
 
-                    storeUnaligned((cast(void16*)dst) + i, loadUnaligned((cast(const void16*)src) + i));
+                    storeUnaligned((cast(void16*)(&dst)) + i, loadUnaligned((cast(const void16*)(&src)) + i));
                 }
 
                 return;
@@ -247,7 +247,7 @@ void clobber()
     }
 }
 
-Duration benchmark(T, alias f)(T* dst, T* src, ulong* bytesCopied)
+Duration benchmark(T, alias f)(ref T dst, ref T src, ulong* bytesCopied)
 {
     enum iterations = 2^^20 / T.sizeof;
     Duration result;
@@ -260,9 +260,9 @@ Duration benchmark(T, alias f)(T* dst, T* src, ulong* bytesCopied)
         sw.reset();
         foreach (_; 0 .. iterations)
         {
-            use(dst);   // So optimizer doesn't remove code
+            use(&dst);   // So optimizer doesn't remove code
             f(dst, src);
-            use(src);   // So optimizer doesn't remove code
+            use(&src);   // So optimizer doesn't remove code
         }
         result += sw.peek();
         *bytesCopied += (iterations * T.sizeof);
@@ -271,23 +271,23 @@ Duration benchmark(T, alias f)(T* dst, T* src, ulong* bytesCopied)
     return result;
 }
 
-void init(T)(T* v)
+void init(T)(ref T v)
 {
     static if (is (T == float))
     {
-        *v = uniform(0.0f, 9_999_999.0f);
+        v = uniform(0.0f, 9_999_999.0f);
     }
     else static if (is(T == double))
     {
-        *v = uniform(0.0, 9_999_999.0);
+        v = uniform(0.0, 9_999_999.0);
     }
     else static if (is(T == real))
     {
-        *v = uniform(0.0L, 9_999_999.0L);
+        v = uniform(0.0L, 9_999_999.0L);
     }
     else
     {
-        auto m = (cast(ubyte*) v)[0 .. T.sizeof];
+        auto m = (cast(ubyte*)(&v))[0 .. T.sizeof];
         for(int i = 0; i < m.length; i++)
         {
             m[i] = uniform!byte;
@@ -295,10 +295,10 @@ void init(T)(T* v)
     }
 }
 
-void verify(T)(const T* a, const T* b)
+void verify(T)(const ref T a, const ref T b)
 {
-    auto aa = (cast(ubyte*)a)[0..T.sizeof];
-    auto bb = (cast(ubyte*)b)[0..T.sizeof];
+    auto aa = (cast(ubyte*)(&a))[0..T.sizeof];
+    auto bb = (cast(ubyte*)(&b))[0..T.sizeof];
     for(int i = 0; i < T.sizeof; i++)
     {
         assert(aa[i] == bb[i]);
@@ -311,8 +311,8 @@ void test(T)()
 {
     // Just an arbitrarily sized buffer big enough to store test data
     // We will offset from this buffer to create unaligned data
-    align(32) ubyte[66000] buf1;
-    align(32) ubyte[66000] buf2;
+    ubyte[66000] buf1;
+    ubyte[66000] buf2;
 
     double TotalGBperSec1 = 0.0;
     double TotalGBperSec2 = 0.0;
@@ -324,26 +324,28 @@ void test(T)()
         {
             static if (T.sizeof < 32)
             {
-                T* d = cast(T*)(&buf1[i]);
-                T* s = cast(T*)(&buf2[i]);
+                auto d = cast(T*)(&buf1[i]);
+                auto s = cast(T*)(&buf2[i]);
             }
             else // AVX code crashes on misalignment, so for now, always align(32)
             {
-                T* d = cast(T*)(&buf1[0]);
-                T* s = cast(T*)(&buf2[0]);
+                auto _d = cast(size_t)(&buf1[32]);
+                auto d = cast(T*)(_d &= ~0b11111);
+                auto _s = cast(size_t)(&buf2[32]);
+                auto s = cast(T*)(_s &= ~0b11111);
             }
 
             ulong bytesCopied1;
             ulong bytesCopied2;
-            init(d);
-            init(s);
-            immutable d1 = benchmark!(T, memcpyC)(d, s, &bytesCopied1);
-            verify(d, s);
+            init(*d);
+            init(*s);
+            immutable d1 = benchmark!(T, memcpyC)(*d, *s, &bytesCopied1);
+            verify(*d, *s);
 
-            init(d);
-            init(s);
-            immutable d2 = benchmark!(T, memcpyD)(d, s, &bytesCopied2);
-            verify(d, s);
+            init(*d);
+            init(*s);
+            immutable d2 = benchmark!(T, memcpyD)(*d, *s, &bytesCopied2);
+            verify(*d, *s);
 
             auto secs1 = (cast(double)(d1.total!"nsecs")) / 1_000_000_000.0;
             auto secs2 = (cast(double)(d2.total!"nsecs")) / 1_000_000_000.0;
